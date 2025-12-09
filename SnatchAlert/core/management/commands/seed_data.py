@@ -17,13 +17,14 @@ class Command(BaseCommand):
         # Create users
         self.stdout.write('\n👤 Creating users...')
         admin_user, created = User.objects.get_or_create(
-            username='admin',
+            email='admin@snatchalert.com',
             defaults={
-                'email': 'admin@snatchalert.com',
                 'role': 'admin',
                 'is_staff': True,
                 'is_superuser': True,
-                'is_verified': True
+                'is_verified': True,
+                'first_name': 'Admin',
+                'last_name': 'User'
             }
         )
         if created:
@@ -32,11 +33,12 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS('✓ Admin user created'))
 
         authority_user, created = User.objects.get_or_create(
-            username='police_officer',
+            email='officer@police.gov',
             defaults={
-                'email': 'officer@police.gov',
                 'role': 'authority',
-                'is_verified': True
+                'is_verified': True,
+                'first_name': 'Police',
+                'last_name': 'Officer'
             }
         )
         if created:
@@ -45,9 +47,8 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS('✓ Authority user created'))
 
         regular_user, created = User.objects.get_or_create(
-            username='john_doe',
+            email='john@example.com',
             defaults={
-                'email': 'john@example.com',
                 'role': 'user',
                 'phone': '+923001234567',
                 'first_name': 'John',

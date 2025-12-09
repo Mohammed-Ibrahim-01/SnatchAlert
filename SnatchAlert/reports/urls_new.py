@@ -4,7 +4,8 @@ from .views_new import (
     IncidentUpdateView, IncidentDeleteView, MyIncidentsView,
     IMEIRegisterView, IMEICheckView, IMEIListView, IMEIUpdateView,
     CrimeHeatmapView, AreaSafetyScoreView, CrimeStatisticsView,
-    AreaAlertListView, AreaAlertCreateView, AreaAlertUpdateView, AreaAlertDeleteView
+    AreaAlertListView, AreaAlertCreateView, AreaAlertUpdateView, AreaAlertDeleteView,
+    MyDeviceAlertsView, MarkAlertReadView, MarkAllAlertsReadView, IMEICheckHistoryView
 )
 
 urlpatterns = [
@@ -21,6 +22,12 @@ urlpatterns = [
     path('imei/check/', IMEICheckView.as_view(), name='imei-check'),
     path('imei/list/', IMEIListView.as_view(), name='imei-list'),
     path('imei/<int:pk>/update/', IMEIUpdateView.as_view(), name='imei-update'),
+    
+    # IMEI Alerts & History
+    path('imei/alerts/', MyDeviceAlertsView.as_view(), name='my-device-alerts'),
+    path('imei/alerts/<int:alert_id>/read/', MarkAlertReadView.as_view(), name='mark-alert-read'),
+    path('imei/alerts/read-all/', MarkAllAlertsReadView.as_view(), name='mark-all-alerts-read'),
+    path('imei/check-history/', IMEICheckHistoryView.as_view(), name='imei-check-history'),
     
     # Crime Analytics & Heatmap
     path('heatmap/', CrimeHeatmapView.as_view(), name='crime-heatmap'),

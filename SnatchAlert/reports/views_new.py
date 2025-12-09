@@ -100,10 +100,12 @@ class IMEIRegisterView(generics.CreateAPIView):
 
 
 class IMEICheckView(APIView):
-    """Check if an IMEI is stolen"""
+    """Check if an IMEI is stolen - triggers alert to owner if found"""
     permission_classes = [permissions.AllowAny]
     
     def post(self, request):
+        from .models import IMEICheckLog, StolenDeviceAlert
+        
         serializer = IMEICheckSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
@@ -111,19 +113,95 @@ class IMEICheckView(APIView):
         
         try:
             record = IMEIRegistry.objects.get(imei=imei)
+            
+            # Get client information
+            ip_address = self.get_client_ip(request)
+            user_agent = request.META.get('HTTP_USER_AGENT', '')
+            
+            # Log the check
+            check_log = IMEICheckLog.objects.create(
+                imei_registry=record,
+                checked_by=request.user if request.user.is_authenticated else None,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                alert_sent=False
+            )
+            
+            # If IMEI is stolen and has an owner, send alert
+            if record.status == 'stolen' and record.reported_by:
+                alert_message = f"""
+🚨 ALERT: Your stolen device has been detected!
+
+Device: {record.phone_brand} {record.phone_model}
+IMEI: {record.imei}
+Detected at: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+Someone just checked this IMEI in our system. This could mean:
+- Your phone is being sold
+- Someone is verifying the device before purchase
+- The device is being checked at a repair shop
+
+Please contact local authorities immediately with this information.
+                """
+                
+                # Create alert
+                alert = StolenDeviceAlert.objects.create(
+                    imei_registry=record,
+                    owner=record.reported_by,
+                    check_log=check_log,
+                    alert_type='check_detected',
+                    message=alert_message
+                )
+                
+                # Mark that alert was sent
+                check_log.alert_sent = True
+                check_log.save()
+                
+                # In production, you would also:
+                # 1. Send push notification
+                # 2. Send email
+                # 3. Send SMS
+                # For now, we'll just create the alert in database
+                
+                try:
+                    from django.core.mail import send_mail
+                    from django.conf import settings
+                    
+                    send_mail(
+                        subject='🚨 ALERT: Your Stolen Device Detected - SnatchAlert',
+                        message=alert_message,
+                        from_email=settings.DEFAULT_FROM_EMAIL,
+                        recipient_list=[record.reported_by.email],
+                        fail_silently=True,
+                    )
+                except Exception as e:
+                    print(f"Failed to send email alert: {str(e)}")
+            
             return Response({
                 'found': True,
                 'status': record.status,
                 'phone_brand': record.phone_brand,
                 'phone_model': record.phone_model,
                 'reported_at': record.reported_at,
-                'message': f'This IMEI is registered as {record.status}'
+                'message': f'⚠️ WARNING: This IMEI is registered as {record.status}',
+                'warning': 'This device has been reported stolen. Do not purchase!',
+                'advice': 'Contact local authorities if you have information about this device.'
             })
         except IMEIRegistry.DoesNotExist:
             return Response({
                 'found': False,
-                'message': 'This IMEI is not in our stolen registry'
+                'message': 'This IMEI is not in our stolen registry',
+                'status': 'safe'
             })
+    
+    def get_client_ip(self, request):
+        """Get client IP address"""
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(',')[0]
+        else:
+            ip = request.META.get('REMOTE_ADDR')
+        return ip
 
 
 class IMEIListView(generics.ListAPIView):
@@ -310,3 +388,113 @@ class AreaAlertDeleteView(generics.DestroyAPIView):
     """Delete area alert (admin only)"""
     permission_classes = [permissions.IsAuthenticated, IsAdminOrAuthority]
     queryset = AreaAlert.objects.all()
+
+
+# Stolen Device Alert Views
+class MyDeviceAlertsView(generics.ListAPIView):
+    """Get all device alerts for the authenticated user"""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        from .models import StolenDeviceAlert
+        
+        alerts = StolenDeviceAlert.objects.filter(
+            owner=request.user
+        ).select_related('imei_registry', 'check_log').order_by('-created_at')
+        
+        unread_count = alerts.filter(is_read=False).count()
+        
+        alerts_data = []
+        for alert in alerts:
+            alerts_data.append({
+                'id': alert.id,
+                'imei': alert.imei_registry.imei,
+                'phone_brand': alert.imei_registry.phone_brand,
+                'phone_model': alert.imei_registry.phone_model,
+                'alert_type': alert.alert_type,
+                'message': alert.message,
+                'is_read': alert.is_read,
+                'created_at': alert.created_at,
+                'check_info': {
+                    'ip_address': alert.check_log.ip_address if alert.check_log else None,
+                    'checked_at': alert.check_log.checked_at if alert.check_log else None,
+                } if alert.check_log else None
+            })
+        
+        return Response({
+            'unread_count': unread_count,
+            'total_count': alerts.count(),
+            'alerts': alerts_data
+        })
+
+
+class MarkAlertReadView(APIView):
+    """Mark a device alert as read"""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request, alert_id):
+        from .models import StolenDeviceAlert
+        
+        try:
+            alert = StolenDeviceAlert.objects.get(id=alert_id, owner=request.user)
+            alert.is_read = True
+            alert.read_at = timezone.now()
+            alert.save()
+            
+            return Response({
+                'message': 'Alert marked as read'
+            })
+        except StolenDeviceAlert.DoesNotExist:
+            return Response({
+                'error': 'Alert not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+
+class MarkAllAlertsReadView(APIView):
+    """Mark all device alerts as read"""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request):
+        from .models import StolenDeviceAlert
+        
+        updated = StolenDeviceAlert.objects.filter(
+            owner=request.user,
+            is_read=False
+        ).update(is_read=True, read_at=timezone.now())
+        
+        return Response({
+            'message': f'{updated} alerts marked as read'
+        })
+
+
+class IMEICheckHistoryView(generics.ListAPIView):
+    """View check history for user's registered IMEIs"""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        from .models import IMEICheckLog
+        
+        # Get all IMEIs registered by this user
+        user_imeis = IMEIRegistry.objects.filter(reported_by=request.user)
+        
+        # Get check logs for these IMEIs
+        check_logs = IMEICheckLog.objects.filter(
+            imei_registry__in=user_imeis
+        ).select_related('imei_registry').order_by('-checked_at')[:50]
+        
+        logs_data = []
+        for log in check_logs:
+            logs_data.append({
+                'id': log.id,
+                'imei': log.imei_registry.imei,
+                'phone_brand': log.imei_registry.phone_brand,
+                'phone_model': log.imei_registry.phone_model,
+                'checked_at': log.checked_at,
+                'ip_address': log.ip_address,
+                'alert_sent': log.alert_sent,
+            })
+        
+        return Response({
+            'total_checks': check_logs.count(),
+            'checks': logs_data
+        })

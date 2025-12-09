@@ -91,6 +91,49 @@ class IMEIRegistry(models.Model):
         return f"{self.imei} - {self.status}"
 
 
+class IMEICheckLog(models.Model):
+    """Log of IMEI checks - tracks when stolen IMEIs are checked"""
+    imei_registry = models.ForeignKey(IMEIRegistry, on_delete=models.CASCADE, related_name='check_logs')
+    checked_by = models.ForeignKey("accounts.CustomUser", on_delete=models.SET_NULL, null=True, blank=True, related_name='imei_checks')
+    checked_at = models.DateTimeField(auto_now_add=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+    location_info = models.JSONField(null=True, blank=True)  # Can store location data if available
+    alert_sent = models.BooleanField(default=False)
+    
+    class Meta:
+        db_table = 'imei_check_logs'
+        ordering = ['-checked_at']
+    
+    def __str__(self):
+        return f"Check for {self.imei_registry.imei} at {self.checked_at}"
+
+
+class StolenDeviceAlert(models.Model):
+    """Alerts sent to owners when their stolen device is detected"""
+    imei_registry = models.ForeignKey(IMEIRegistry, on_delete=models.CASCADE, related_name='alerts')
+    owner = models.ForeignKey("accounts.CustomUser", on_delete=models.CASCADE, related_name='device_alerts')
+    check_log = models.ForeignKey(IMEICheckLog, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    alert_type = models.CharField(max_length=20, choices=[
+        ('check_detected', 'Check Detected'),
+        ('purchase_attempt', 'Purchase Attempt'),
+        ('location_update', 'Location Update')
+    ], default='check_detected')
+    
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    read_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'stolen_device_alerts'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Alert for {self.owner.email} - {self.imei_registry.imei}"
+
+
 class AreaAlert(models.Model):
     """Location-based alerts for high-crime areas"""
     location = models.ForeignKey("core.LocationDim", on_delete=models.CASCADE, related_name='alerts')

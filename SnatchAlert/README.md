@@ -1,73 +1,28 @@
-# SnatchAlert - Crime Reporting & Tracking System
+# SnatchAlert - Crime Reporting & IMEI Tracking Backend
 
-A comprehensive backend API for a mobile crime reporting application with real-time tracking, heatmaps, IMEI registry, and community safety features.
+A comprehensive Django REST Framework backend for crime reporting and stolen device tracking with real-time IMEI alerts.
 
-## 🚀 Features
-
-### Core Functionality
-- **Crime Incident Reporting** - Report mobile snatching, vehicle theft, and other crimes
-- **IMEI Tracking System** - Register and check stolen phone IMEIs
-- **Crime Heatmaps** - Visualize crime hotspots with geo-location data
-- **Area Safety Scores** - Calculate and display safety ratings for different areas
-- **Community Safety Tips** - Share and view safety recommendations
-- **Location-based Alerts** - Real-time alerts for high-crime areas
-- **File Uploads** - Upload FIR documents and stolen item images
-
-### Technical Features
-- **JWT Authentication** - Secure token-based authentication
-- **Role-based Access Control** - User, Admin, and Authority roles
-- **Snowflake Schema** - Optimized database design with dimension tables
-- **RESTful API** - Clean and well-documented API endpoints
-- **Swagger Documentation** - Auto-generated API documentation
-- **Filtering & Search** - Advanced filtering and search capabilities
-- **Pagination** - Efficient data pagination
-- **Anonymous Reporting** - Allow anonymous crime reports
-
-## 📊 Database Schema (Snowflake Design)
-
-### Fact Table
-- **IncidentFact** - Core table storing crime incidents
-
-### Dimension Tables
-- **LocationDim** - Location information (province, city, district, neighborhood, coordinates)
-- **VictimDim** - Victim information (name, age, gender, contact)
-- **IncidentTypeDim** - Crime categories
-- **StolenItemDim** - Stolen items (phones with IMEI, vehicles with license plates)
-
-### Additional Tables
-- **IMEIRegistry** - Stolen phone IMEI tracking
-- **AreaAlert** - Location-based crime alerts
-- **SafetyTip** - Community safety tips
-- **UserFeedback** - User feedback and suggestions
-
-## 🛠️ Technology Stack
-
-- **Framework**: Django 5.2.8
-- **API**: Django REST Framework 3.15.2
-- **Authentication**: JWT (djangorestframework-simplejwt)
-- **Database**: PostgreSQL
-- **Documentation**: drf-yasg (Swagger/OpenAPI)
-- **Filtering**: django-filter
-- **CORS**: django-cors-headers
-
-## 📦 Installation
+## 🚀 Quick Start
 
 ### Prerequisites
-- Python 3.10+
-- PostgreSQL 12+
-- pip
+- Python 3.8+
+- pip (Python package manager)
 
-### Setup Steps
+### Installation
 
-1. **Clone the repository**
+1. **Clone and navigate to project**
 ```bash
-cd SnatchAlert
+git clone <repository-url>
+cd SnatchAlertBackend/SnatchAlert
 ```
 
 2. **Create virtual environment**
 ```bash
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+# Windows
+venv\Scripts\activate
+# macOS/Linux
+source venv/bin/activate
 ```
 
 3. **Install dependencies**
@@ -75,392 +30,144 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-4. **Configure database**
-Create a PostgreSQL database:
-```sql
-CREATE DATABASE snatchalertdb;
-CREATE USER snatch_user WITH PASSWORD 'SnatchAlert123';
-GRANT ALL PRIVILEGES ON DATABASE snatchalertdb TO snatch_user;
-```
-
-5. **Run migrations**
+4. **Setup database**
 ```bash
-python manage.py makemigrations
 python manage.py migrate
+python manage.py seed_data  # Creates test data
 ```
 
-6. **Create superuser**
-```bash
-python manage.py createsuperuser
-```
-
-7. **Load seed data (optional)**
-```bash
-python manage.py shell < seed_data.py
-```
-
-8. **Run development server**
+5. **Run development server**
 ```bash
 python manage.py runserver
 ```
 
-The API will be available at `http://localhost:8000`
+🎉 **Server running at:** http://127.0.0.1:8000/
 
-## 📚 API Documentation
+## 📱 Key Features
 
-### Access Documentation
-- **Swagger UI**: http://localhost:8000/api/docs/
-- **ReDoc**: http://localhost:8000/api/redoc/
-- **OpenAPI Schema**: http://localhost:8000/api/schema/
+### 🔐 Email-Based Authentication
+- Pure email login (no username required)
+- JWT token authentication
+- Password reset with email verification
+- Profile management
 
-### Authentication Endpoints
+### 📞 IMEI Stolen Device Alerts
+- Register stolen phone IMEIs
+- Real-time alerts when stolen IMEI is checked
+- Email notifications to device owners
+- Check history and IP tracking
 
-#### Register User
-```http
-POST /api/auth/register/
-Content-Type: application/json
+### 🚨 Crime Reporting
+- Anonymous incident reporting
+- File uploads (FIR documents, images)
+- Advanced filtering and search
+- Geo-location support
 
-{
-  "username": "john_doe",
-  "email": "john@example.com",
-  "password": "SecurePass123",
-  "password2": "SecurePass123",
-  "phone": "+923001234567"
-}
-```
+### 📊 Analytics & Insights
+- Crime heatmaps
+- Area safety scores
+- Statistics dashboard
+- Community safety tips
 
-#### Login
-```http
-POST /api/auth/login/
-Content-Type: application/json
+## 🔌 API Endpoints
 
-{
-  "username": "john_doe",
-  "password": "SecurePass123"
-}
+### Authentication
+- `POST /api/auth/register/` - Register with email
+- `POST /api/auth/login/` - Login with email
+- `GET /api/auth/profile/` - Get user profile
 
-Response:
-{
-  "access": "eyJ0eXAiOiJKV1QiLCJhbGc...",
-  "refresh": "eyJ0eXAiOiJKV1QiLCJhbGc..."
-}
-```
+### IMEI Tracking
+- `POST /api/reports/imei/register/` - Register stolen IMEI
+- `POST /api/reports/imei/check/` - Check IMEI status
+- `GET /api/reports/imei/alerts/` - Get device alerts
 
-#### Get User Profile
-```http
-GET /api/auth/profile/
-Authorization: Bearer <access_token>
-```
+### Crime Reports
+- `GET /api/reports/incidents/` - List incidents
+- `POST /api/reports/incidents/create/` - Report incident
+- `GET /api/reports/heatmap/` - Crime heatmap data
 
-### Incident Reporting Endpoints
+**📚 Complete API Documentation:** [API_DOCUMENTATION.md](API_DOCUMENTATION.md)
 
-#### Create Incident
-```http
-POST /api/reports/incidents/create/
-Authorization: Bearer <access_token>
-Content-Type: application/json
+## 🧪 Test Data
 
-{
-  "occurred_at": "2024-12-05T14:30:00Z",
-  "incident_type_name": "Mobile Snatching",
-  "location_data": {
-    "province": "Punjab",
-    "city": "Lahore",
-    "district": "Gulberg",
-    "neighborhood": "MM Alam Road",
-    "street_address": "Main Boulevard",
-    "latitude": 31.5204,
-    "longitude": 74.3587
-  },
-  "victim_data": {
-    "name": "John Doe",
-    "age": 28,
-    "gender": "male",
-    "phone_number": "+923001234567"
-  },
-  "stolen_item_data": {
-    "item_type": "phone",
-    "imei": "123456789012345",
-    "phone_brand": "Samsung",
-    "phone_model": "Galaxy S21",
-    "value_estimate": 75000
-  },
-  "value_estimate": 75000,
-  "fir_filed": true,
-  "description": "Phone snatched at gunpoint",
-  "is_anonymous": false
-}
-```
+After running `python manage.py seed_data`, use these test accounts:
 
-#### List Incidents (with filters)
-```http
-GET /api/reports/incidents/?city=Lahore&date_from=2024-12-01&status=reported
-Authorization: Bearer <access_token>
-```
+- **Admin:** `admin@snatchalert.com` / `admin123`
+- **Officer:** `officer@police.gov` / `police123`  
+- **User:** `john@example.com` / `user123`
 
-#### Get My Incidents
-```http
-GET /api/reports/incidents/my/
-Authorization: Bearer <access_token>
-```
+## 🛠️ Development Tools
 
-#### Update Incident
-```http
-PATCH /api/reports/incidents/{id}/update/
-Authorization: Bearer <access_token>
-Content-Type: application/json
+- **API Documentation:** http://127.0.0.1:8000/api/docs/
+- **Admin Panel:** http://127.0.0.1:8000/admin/
+- **Postman Collection:** `SnatchAlert_API_Collection.json`
 
-{
-  "status": "investigating",
-  "description": "Updated description"
-}
-```
+## 📊 Database Schema
 
-### IMEI Tracking Endpoints
+Uses optimized snowflake schema design:
 
-#### Register Stolen IMEI
-```http
-POST /api/reports/imei/register/
-Authorization: Bearer <access_token>
-Content-Type: application/json
+- **IncidentFact** - Central crime incidents table
+- **LocationDim** - Geographic data
+- **VictimDim** - Victim information  
+- **IMEIRegistry** - Stolen device tracking
+- **StolenDeviceAlert** - Real-time alerts
 
-{
-  "imei": "123456789012345",
-  "phone_brand": "Samsung",
-  "phone_model": "Galaxy S21",
-  "owner_name": "John Doe",
-  "owner_contact": "+923001234567",
-  "status": "stolen"
-}
-```
+## 🔒 Security Features
 
-#### Check IMEI Status
-```http
-POST /api/reports/imei/check/
-Content-Type: application/json
+- JWT token authentication
+- Role-based access control (User/Authority/Admin)
+- Input validation and sanitization
+- IP address logging for IMEI checks
+- Secure file upload handling
 
-{
-  "imei": "123456789012345"
-}
+## 🌐 Production Deployment
 
-Response:
-{
-  "found": true,
-  "status": "stolen",
-  "phone_brand": "Samsung",
-  "phone_model": "Galaxy S21",
-  "reported_at": "2024-12-05T10:30:00Z",
-  "message": "This IMEI is registered as stolen"
-}
-```
-
-#### List All IMEIs (Admin only)
-```http
-GET /api/reports/imei/list/?status=stolen
-Authorization: Bearer <access_token>
-```
-
-### Crime Analytics Endpoints
-
-#### Get Crime Heatmap
-```http
-GET /api/reports/heatmap/?days=30&city=Lahore
-```
-
-Response:
-```json
-[
-  {
-    "latitude": 31.5204,
-    "longitude": 74.3587,
-    "incident_count": 15,
-    "city": "Lahore",
-    "district": "Gulberg"
-  }
-]
-```
-
-#### Get Area Safety Scores
-```http
-GET /api/reports/safety-score/?city=Lahore&days=90
-```
-
-Response:
-```json
-[
-  {
-    "location_id": 1,
-    "city": "Lahore",
-    "district": "Gulberg",
-    "neighborhood": "MM Alam Road",
-    "incident_count": 15,
-    "safety_score": 65.5,
-    "risk_level": "Medium"
-  }
-]
-```
-
-#### Get Crime Statistics
-```http
-GET /api/reports/statistics/?days=30
-```
-
-### Area Alerts Endpoints
-
-#### List Active Alerts
-```http
-GET /api/reports/alerts/?city=Lahore&severity=high
-```
-
-#### Create Alert (Admin/Authority only)
-```http
-POST /api/reports/alerts/create/
-Authorization: Bearer <access_token>
-Content-Type: application/json
-
-{
-  "location_id": 1,
-  "alert_type": "high_crime",
-  "message": "High crime rate in this area",
-  "severity": "high",
-  "valid_from": "2024-12-05T00:00:00Z"
-}
-```
-
-### Safety Tips Endpoints
-
-#### List Safety Tips
-```http
-GET /api/core/safety-tips/?category=Mobile Safety
-```
-
-#### Create Safety Tip (Admin only)
-```http
-POST /api/core/safety-tips/create/
-Authorization: Bearer <access_token>
-Content-Type: application/json
-
-{
-  "title": "Keep Your Phone Secure",
-  "content": "Always keep your phone in your front pocket...",
-  "category": "Mobile Safety"
-}
-```
-
-### Feedback Endpoints
-
-#### Submit Feedback
-```http
-POST /api/core/feedback/
-Content-Type: application/json
-
-{
-  "subject": "App Suggestion",
-  "message": "It would be great to have...",
-  "contact_email": "user@example.com"
-}
-```
-
-## 🔐 Authentication
-
-All protected endpoints require JWT authentication. Include the access token in the Authorization header:
-
-```
-Authorization: Bearer <your_access_token>
-```
-
-### Token Refresh
-```http
-POST /api/auth/token/refresh/
-Content-Type: application/json
-
-{
-  "refresh": "<your_refresh_token>"
-}
-```
-
-## 👥 User Roles
-
-- **User** - Can report incidents, check IMEIs, view analytics
-- **Authority** - Police/law enforcement, can manage alerts and view all data
-- **Admin** - Full access, can manage all resources
-
-## 📁 Project Structure
-
-```
-SnatchAlert/
-├── accounts/           # User authentication & profiles
-├── core/              # Core models (dimensions, tips, feedback)
-├── reports/           # Incident reporting, IMEI, alerts
-├── phones/            # Phone-related models (legacy)
-├── vehicles/          # Vehicle-related models (legacy)
-├── SnatchAlert/       # Project settings & main URLs
-├── media/             # Uploaded files (FIR, images)
-├── manage.py
-├── requirements.txt
-├── seed_data.py       # Sample data generator
-└── README.md
-```
-
-## 🧪 Testing
-
-Run tests:
+1. **Environment Setup**
 ```bash
-python manage.py test
+cp .env.example .env
+# Configure production settings in .env
 ```
 
-## 📝 Seed Data
-
-The seed data script creates:
-- 3 users (admin, authority, regular user)
-- 5 incident types
-- 6 locations across Pakistan
-- 3 victims
-- 4 stolen items
-- 3 incidents
-- 2 IMEI records
-- 2 area alerts
-- 3 safety tips
-
-Login credentials after seeding:
-- **Admin**: username=`admin`, password=`admin123`
-- **Authority**: username=`police_officer`, password=`police123`
-- **User**: username=`john_doe`, password=`user123`
-
-## 🚀 Deployment
-
-### Environment Variables
-Create a `.env` file:
-```env
-SECRET_KEY=your-secret-key
-DEBUG=False
-ALLOWED_HOSTS=your-domain.com
-DATABASE_URL=postgresql://user:password@localhost/dbname
+2. **Database Migration**
+```bash
+python manage.py migrate --settings=SnatchAlert.settings_production
 ```
 
-### Production Checklist
-- [ ] Set `DEBUG=False`
-- [ ] Configure `ALLOWED_HOSTS`
-- [ ] Use environment variables for secrets
-- [ ] Set up proper database (PostgreSQL)
-- [ ] Configure static/media file serving
-- [ ] Set up HTTPS
-- [ ] Configure CORS properly
-- [ ] Set up email backend for password reset
-- [ ] Enable database backups
+3. **Collect Static Files**
+```bash
+python manage.py collectstatic
+```
 
-## 📄 License
+## 📈 Technology Stack
 
-MIT License
+- **Backend:** Django 5.2.8 + Django REST Framework 3.15.2
+- **Database:** PostgreSQL (SQLite for development)
+- **Authentication:** JWT (djangorestframework-simplejwt)
+- **Documentation:** drf-yasg (Swagger/OpenAPI)
+- **Filtering:** django-filter
+- **Image Processing:** Pillow
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open Pull Request
 
-## 📧 Support
+## 📞 Support
 
-For support, email support@snatchalert.com
+For questions or issues:
+- Check [API_DOCUMENTATION.md](API_DOCUMENTATION.md) for detailed API reference
+- Review [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) for complete project overview
+- Open an issue in the repository
+
+## 📄 License
+
+This project is licensed under the MIT License.
 
 ---
 
-**Built with ❤️ for community safety**
+**Built for community safety** 🛡️
+
+**Ready for mobile app integration!** 📱

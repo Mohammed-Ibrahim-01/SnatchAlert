@@ -1,3 +1,27 @@
+"""
+Reports Serializers - New Version
+
+SERIALIZER FIX SUMMARY:
+Added serializers at the end of this file to resolve DRF OpenAPI schema generation errors.
+
+PROBLEM: Two views (MyDeviceAlertsView and IMEICheckHistoryView) extended ListAPIView
+but overrode the get() method with custom response structures. DRF's schema generator
+requires a serializer_class to understand the response format for API documentation.
+
+SOLUTION: Created response serializers that match the exact JSON structure returned
+by these views' custom get() methods. These serializers are used ONLY for OpenAPI
+documentation - the actual serialization is still done manually in the views.
+
+FILES MODIFIED:
+- serializers_new.py: Added 4 new serializers (DeviceAlert, MyDeviceAlertsResponse, 
+  IMEICheckLog, IMEICheckHistoryResponse)
+- views_new.py: Added serializer_class attributes to both problematic views
+
+ERRORS FIXED:
+- AssertionError: 'MyDeviceAlertsView' should either include a `serializer_class` attribute
+- AssertionError: 'IMEICheckHistoryView' should either include a `serializer_class` attribute
+"""
+
 from rest_framework import serializers
 from django.db import transaction
 from .models import IncidentFact, IMEIRegistry, AreaAlert
@@ -163,3 +187,90 @@ class AreaSafetySerializer(serializers.Serializer):
     incident_count = serializers.IntegerField()
     safety_score = serializers.FloatField()
     risk_level = serializers.CharField()
+
+
+class DeviceAlertSerializer(serializers.Serializer):
+    """
+    Serializer for individual device alert data structure.
+    
+    SERIALIZER FIX: This serializer was created to define the structure of alert
+    objects returned by MyDeviceAlertsView. It matches the dictionary structure
+    created in the view's custom get() method.
+    
+    Used as a nested serializer within MyDeviceAlertsResponseSerializer.
+    """
+    id = serializers.IntegerField()
+    imei = serializers.CharField()
+    phone_brand = serializers.CharField()
+    phone_model = serializers.CharField()
+    alert_type = serializers.CharField()
+    message = serializers.CharField()
+    is_read = serializers.BooleanField()
+    created_at = serializers.DateTimeField()
+    check_info = serializers.DictField(required=False, allow_null=True)  # May be None if no check_log
+
+
+class MyDeviceAlertsResponseSerializer(serializers.Serializer):
+    """
+    Serializer for MyDeviceAlertsView complete response structure.
+    
+    SERIALIZER FIX: This serializer was created to resolve the DRF OpenAPI schema
+    generation error. When a ListAPIView overrides the get() method with custom
+    response structure, DRF needs a serializer_class to generate proper API docs.
+    
+    ERROR FIXED: AssertionError: 'MyDeviceAlertsView' should either include a 
+    `serializer_class` attribute, or override the `get_serializer_class()` method.
+    
+    This serializer defines the exact JSON structure returned by the view:
+    {
+        "unread_count": 5,
+        "total_count": 23, 
+        "alerts": [DeviceAlertSerializer objects]
+    }
+    """
+    unread_count = serializers.IntegerField()
+    total_count = serializers.IntegerField()
+    alerts = DeviceAlertSerializer(many=True)
+
+
+class IMEICheckLogSerializer(serializers.Serializer):
+    """
+    Serializer for individual IMEI check log data structure.
+    
+    SERIALIZER FIX: This serializer defines the structure of check log objects
+    returned by IMEICheckHistoryView. It matches the dictionary structure created
+    in the view's custom get() method.
+    
+    Used as a nested serializer within IMEICheckHistoryResponseSerializer.
+    Represents when someone checked a user's registered stolen IMEI.
+    """
+    id = serializers.IntegerField()
+    imei = serializers.CharField()
+    phone_brand = serializers.CharField()
+    phone_model = serializers.CharField()
+    checked_at = serializers.DateTimeField()
+    ip_address = serializers.CharField()  # IP address of the checker
+    alert_sent = serializers.BooleanField()  # Whether owner was notified
+
+
+class IMEICheckHistoryResponseSerializer(serializers.Serializer):
+    """
+    Serializer for IMEICheckHistoryView complete response structure.
+    
+    SERIALIZER FIX: This serializer was created to resolve the DRF OpenAPI schema
+    generation error for IMEICheckHistoryView. Similar to MyDeviceAlertsView, this
+    view extends ListAPIView but overrides get() with custom response structure.
+    
+    ERROR FIXED: AssertionError: 'IMEICheckHistoryView' should either include a 
+    `serializer_class` attribute, or override the `get_serializer_class()` method.
+    
+    This serializer defines the exact JSON structure returned by the view:
+    {
+        "total_checks": 15,
+        "checks": [IMEICheckLogSerializer objects]
+    }
+    
+    Helps users track who has been checking their stolen device IMEIs.
+    """
+    total_checks = serializers.IntegerField()
+    checks = IMEICheckLogSerializer(many=True)

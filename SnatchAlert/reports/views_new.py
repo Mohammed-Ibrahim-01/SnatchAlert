@@ -10,7 +10,10 @@ from core.models import LocationDim
 from .serializers_new import (
     IncidentFactCreateSerializer, IncidentFactListSerializer, IncidentFactUpdateSerializer,
     IMEIRegistrySerializer, IMEICheckSerializer, AreaAlertSerializer,
-    CrimeHeatmapSerializer, AreaSafetySerializer
+    CrimeHeatmapSerializer, AreaSafetySerializer,
+    # SERIALIZER FIX: Added these two serializers to resolve DRF OpenAPI schema errors
+    MyDeviceAlertsResponseSerializer,    # For MyDeviceAlertsView response structure
+    IMEICheckHistoryResponseSerializer   # For IMEICheckHistoryView response structure
 )
 from .permissions import IsOwnerOrReadOnly, IsAdminOrAuthority
 
@@ -392,18 +395,48 @@ class AreaAlertDeleteView(generics.DestroyAPIView):
 
 # Stolen Device Alert Views
 class MyDeviceAlertsView(generics.ListAPIView):
-    """Get all device alerts for the authenticated user"""
+    """
+    Get all device alerts for the authenticated user
+    
+    SERIALIZER FIX: Added serializer_class to resolve DRF schema generation error.
+    When extending ListAPIView but overriding the get() method, DRF's OpenAPI schema
+    generator requires a serializer_class to understand the response structure.
+    Without it, you get: AssertionError: 'MyDeviceAlertsView' should either include 
+    a `serializer_class` attribute, or override the `get_serializer_class()` method.
+    
+    The MyDeviceAlertsResponseSerializer defines the exact structure of the JSON
+    response returned by this view's custom get() method.
+    """
     permission_classes = [permissions.IsAuthenticated]
+    serializer_class = MyDeviceAlertsResponseSerializer  # Required for OpenAPI schema generation
     
     def get(self, request):
+        """
+        Custom get method that overrides ListAPIView's default behavior.
+        
+        NOTE: This method returns a custom Response structure instead of using
+        DRF's default pagination and serialization. The serializer_class above
+        is used ONLY for OpenAPI documentation - the actual serialization is
+        done manually here.
+        
+        Response structure matches MyDeviceAlertsResponseSerializer:
+        {
+            "unread_count": int,
+            "total_count": int, 
+            "alerts": [DeviceAlertSerializer objects]
+        }
+        """
         from .models import StolenDeviceAlert
         
+        # Get user's device alerts with related data to avoid N+1 queries
         alerts = StolenDeviceAlert.objects.filter(
             owner=request.user
         ).select_related('imei_registry', 'check_log').order_by('-created_at')
         
+        # Calculate unread count for notification badge
         unread_count = alerts.filter(is_read=False).count()
         
+        # Manually serialize alert data to match DeviceAlertSerializer structure
         alerts_data = []
         for alert in alerts:
             alerts_data.append({
@@ -415,12 +448,14 @@ class MyDeviceAlertsView(generics.ListAPIView):
                 'message': alert.message,
                 'is_read': alert.is_read,
                 'created_at': alert.created_at,
+                # Include check info if available (may be None)
                 'check_info': {
                     'ip_address': alert.check_log.ip_address if alert.check_log else None,
                     'checked_at': alert.check_log.checked_at if alert.check_log else None,
                 } if alert.check_log else None
             })
         
+        # Return custom response structure (matches MyDeviceAlertsResponseSerializer)
         return Response({
             'unread_count': unread_count,
             'total_count': alerts.count(),
@@ -468,20 +503,48 @@ class MarkAllAlertsReadView(APIView):
 
 
 class IMEICheckHistoryView(generics.ListAPIView):
-    """View check history for user's registered IMEIs"""
+    """
+    View check history for user's registered IMEIs
+    
+    SERIALIZER FIX: Added serializer_class to resolve DRF schema generation error.
+    Similar to MyDeviceAlertsView, this view extends ListAPIView but overrides get().
+    The IMEICheckHistoryResponseSerializer defines the response structure for
+    OpenAPI documentation, preventing the AssertionError during schema generation.
+    
+    This view shows when and from where someone checked the user's registered IMEIs,
+    helping users track potential theft attempts or legitimate verification checks.
+    """
     permission_classes = [permissions.IsAuthenticated]
+    serializer_class = IMEICheckHistoryResponseSerializer  # Required for OpenAPI schema generation
     
     def get(self, request):
+        """
+        Custom get method that returns IMEI check history for user's registered devices.
+        
+        NOTE: Like MyDeviceAlertsView, this overrides ListAPIView's default behavior
+        with custom serialization. The serializer_class is used only for OpenAPI docs.
+        
+        Response structure matches IMEICheckHistoryResponseSerializer:
+        {
+            "total_checks": int,
+            "checks": [IMEICheckLogSerializer objects]
+        }
+        
+        This helps users monitor who has been checking their stolen device IMEIs,
+        which can indicate recovery attempts or further theft activity.
+        """
         from .models import IMEICheckLog
         
-        # Get all IMEIs registered by this user
+        # Get all IMEIs that this user has registered as stolen
         user_imeis = IMEIRegistry.objects.filter(reported_by=request.user)
         
-        # Get check logs for these IMEIs
+        # Get recent check logs for these IMEIs (limit to 50 for performance)
+        # Use select_related to avoid N+1 queries when accessing imei_registry data
         check_logs = IMEICheckLog.objects.filter(
             imei_registry__in=user_imeis
         ).select_related('imei_registry').order_by('-checked_at')[:50]
         
+        # Manually serialize check log data to match IMEICheckLogSerializer structure
         logs_data = []
         for log in check_logs:
             logs_data.append({
@@ -490,10 +553,11 @@ class IMEICheckHistoryView(generics.ListAPIView):
                 'phone_brand': log.imei_registry.phone_brand,
                 'phone_model': log.imei_registry.phone_model,
                 'checked_at': log.checked_at,
-                'ip_address': log.ip_address,
-                'alert_sent': log.alert_sent,
+                'ip_address': log.ip_address,  # Shows where the check came from
+                'alert_sent': log.alert_sent,  # Whether owner was notified
             })
         
+        # Return custom response structure (matches IMEICheckHistoryResponseSerializer)
         return Response({
             'total_checks': check_logs.count(),
             'checks': logs_data

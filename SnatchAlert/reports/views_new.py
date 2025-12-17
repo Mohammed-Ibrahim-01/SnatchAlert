@@ -256,7 +256,18 @@ class CrimeHeatmapView(APIView):
             location__longitude__isnull=False
         ).order_by('-incident_count')
         
-        serializer = CrimeHeatmapSerializer(heatmap_data, many=True)
+        # Transform the data to match serializer field names
+        transformed_data = []
+        for item in heatmap_data:
+            transformed_data.append({
+                'latitude': item['location__latitude'],
+                'longitude': item['location__longitude'],
+                'city': item['location__city'],
+                'district': item['location__district'],
+                'incident_count': item['incident_count']
+            })
+        
+        serializer = CrimeHeatmapSerializer(transformed_data, many=True)
         return Response(serializer.data)
 
 

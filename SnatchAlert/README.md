@@ -77,7 +77,7 @@ python manage.py runserver
 - `GET /api/auth/profile/` - Get user profile
 
 ### IMEI Tracking
-- `POST /api/reports/imei/register/` - Register stolen IMEI
+- **Automatic Registration:** IMEIs are automatically registered when creating incident reports for stolen phones
 - `POST /api/reports/imei/check/` - Check IMEI status
 - `GET /api/reports/imei/alerts/` - Get device alerts
 

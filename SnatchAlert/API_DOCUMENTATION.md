@@ -269,37 +269,7 @@ Reset password with token.
 
 ## 📱 IMEI Tracking Endpoints
 
-### Register Stolen IMEI
-Register a stolen phone IMEI.
-
-**Endpoint:** `POST /reports/imei/register/`  
-**Permission:** Authenticated
-
-**Request:**
-```json
-{
-  "imei": "123456789012345",
-  "phone_brand": "Samsung",
-  "phone_model": "Galaxy S21",
-  "owner_name": "John Doe",
-  "owner_contact": "+923001234567",
-  "status": "stolen",
-  "notes": "Stolen from car"
-}
-```
-
-**Response:** `201 Created`
-```json
-{
-  "id": 1,
-  "imei": "123456789012345",
-  "phone_brand": "Samsung",
-  "phone_model": "Galaxy S21",
-  "owner_name": "John Doe",
-  "status": "stolen",
-  "reported_at": "2024-12-05T15:00:00Z"
-}
-```
+**Note:** IMEI registration is now handled automatically when creating incident reports for stolen phones. Simply include the IMEI in the `stolen_item_data` when creating an incident, and the system will automatically register it in the IMEI tracking database.
 
 ### Check IMEI Status
 Check if an IMEI is stolen (triggers alert if found).
@@ -454,6 +424,8 @@ Report a new crime incident.
 
 **Endpoint:** `POST /reports/incidents/create/`  
 **Permission:** Public (allows anonymous reporting)
+
+**🔥 Automatic IMEI Registration:** When reporting a stolen phone incident, include the IMEI in `stolen_item_data`. The system will automatically register the IMEI in the tracking database and enable alert notifications when someone checks it.
 
 **Request:**
 ```json

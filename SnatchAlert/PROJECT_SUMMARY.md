@@ -85,8 +85,8 @@ SnatchAlert is a comprehensive crime reporting and tracking backend system built
 - `POST /api/auth/password-reset/verify/` - Verify reset token
 - `POST /api/auth/password-reset/confirm/` - Confirm password reset
 
-### IMEI Tracking & Alerts (8 endpoints)
-- `POST /api/reports/imei/register/` - Register stolen IMEI
+### IMEI Tracking & Alerts (7 endpoints)
+- **Automatic Registration:** IMEIs are automatically registered when creating incident reports for stolen phones
 - `POST /api/reports/imei/check/` - Check IMEI status (triggers alerts)
 - `GET /api/reports/imei/list/` - List all IMEIs (admin)
 - `PATCH /api/reports/imei/{id}/update/` - Update IMEI status
@@ -290,7 +290,7 @@ python manage.py seed_data
 - **Views Fixed:** MyDeviceAlertsView and IMEICheckHistoryView
 - **Solution:** Added proper serializer classes for OpenAPI documentation
 - **Impact:** Clean server startup, proper API documentation generation
-- **Files Modified:** `reports/views_new.py`, `reports/serializers_new.py`
+- **Files Modified:** `reports/views.py`, `reports/serializers.py`
 
 ### Code Quality Enhancements
 - **Comprehensive Comments:** Added detailed documentation for all modified code

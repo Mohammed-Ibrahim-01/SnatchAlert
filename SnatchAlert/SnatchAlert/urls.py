@@ -44,13 +44,13 @@ urlpatterns = [
     path('api/schema/', schema_view.without_ui(cache_timeout=0), name='api-schema'),
     
     # Authentication
-    path('api/auth/', include('accounts.urls_new')),
+    path('api/auth/', include('accounts.urls')),
     
     # Core features (safety tips, feedback, incident types)
     path('api/core/', include('core.urls')),
     
     # Reports (incidents, IMEI, heatmap, alerts)
-    path('api/reports/', include('reports.urls_new')),
+    path('api/reports/', include('reports.urls')),
 ]
 
 # Serve media files in development

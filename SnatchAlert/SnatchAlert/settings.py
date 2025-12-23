@@ -12,10 +12,34 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
-from decouple import config, Csv
+from decouple import Config, RepositoryEnv, Csv
 import os
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Determine environment and load appropriate config
+def get_config():
+    """Get configuration based on environment"""
+    # Check if we're on PythonAnywhere (common indicator)
+    if 'pythonanywhere' in os.environ.get('HOSTNAME', '').lower() or \
+       os.environ.get('PYTHONANYWHERE_DOMAIN'):
+        # Production environment - look for .env or .env.production
+        env_files = ['.env', '.env.production']
+    else:
+        # Local development - look for .env or .env.local
+        env_files = ['.env', '.env.local']
+    
+    for env_file in env_files:
+        env_path = BASE_DIR / env_file
+        if env_path.exists():
+            return Config(RepositoryEnv(str(env_path)))
+    
+    # Fallback to system environment variables
+    from decouple import config as default_config
+    return default_config
+
+config = get_config()
 
 
 # Quick-start development settings - unsuitable for production

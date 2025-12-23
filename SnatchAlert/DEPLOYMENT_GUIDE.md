@@ -21,7 +21,11 @@ This guide solves the git pull conflict issue on PythonAnywhere by using environ
 
 2. **Create production environment file**:
    ```bash
+   # Option A: Copy and rename (Recommended)
    cp .env.production .env
+   
+   # Option B: Just rename if you prefer
+   # mv .env.production .env
    ```
 
 3. **Edit the production .env file** with your actual values:
@@ -96,3 +100,52 @@ Now you can easily deploy updates:
 ✅ Easy environment switching
 ✅ Team-friendly development setup
 ✅ Production-ready configuration
+
+## Troubleshooting
+
+### Environment Variables Not Loading
+
+**Problem**: Settings not reading from `.env` file on PythonAnywhere
+
+**Solutions**:
+
+1. **Check file exists**:
+   ```bash
+   ls -la ~/.env  # or ~/mysite/.env
+   ```
+
+2. **Verify file content**:
+   ```bash
+   head -5 .env
+   ```
+
+3. **Check file permissions**:
+   ```bash
+   chmod 644 .env
+   ```
+
+4. **Test environment loading**:
+   ```bash
+   python manage.py shell -c "from django.conf import settings; print(f'DEBUG: {settings.DEBUG}'); print(f'DB_NAME: {settings.DATABASES[\"default\"][\"NAME\"]}')"
+   ```
+
+### Database Connection Issues
+
+**Problem**: Can't connect to MySQL on PythonAnywhere
+
+**Check**:
+- Database name format: `yourusername$dbname`
+- Host: `yourusername.mysql.pythonanywhere-services.com`
+- Port: `3306` (not 5432)
+- Install mysqlclient: `pip install mysqlclient`
+
+### Static Files Not Loading
+
+**Problem**: CSS/JS files not working
+
+**Solution**:
+```bash
+python manage.py collectstatic --noinput
+```
+
+Then update your PythonAnywhere web app static files mapping.

@@ -21,10 +21,11 @@ from .permissions import IsOwnerOrReadOnly, IsAdminOrAuthority
 class IncidentCreateView(generics.CreateAPIView):
     """Create a new incident report"""
     serializer_class = IncidentFactCreateSerializer
-    permission_classes = [permissions.AllowAny]  # Allow anonymous reporting
+    permission_classes = [permissions.IsAuthenticated]  # Require authentication for ownership verification
     
     def perform_create(self, serializer):
-        serializer.save()
+        # Automatically set the reporter as the authenticated user
+        serializer.save(reported_by=self.request.user)
 
 
 class IncidentListView(generics.ListAPIView):

@@ -423,9 +423,11 @@ View check history for user's registered IMEIs.
 Report a new crime incident.
 
 **Endpoint:** `POST /reports/incidents/create/`  
-**Permission:** Public (allows anonymous reporting)
+**Permission:** Authenticated (requires login for ownership verification)
 
 **🔥 Automatic IMEI Registration:** When reporting a stolen phone incident, include the IMEI in `stolen_item_data`. The system will automatically register the IMEI in the tracking database and enable alert notifications when someone checks it.
+
+**🔐 Security Note:** Authentication is required to verify ownership of reported stolen items, especially for IMEI registration. This prevents false reports and ensures only legitimate owners can claim devices.
 
 **Request:**
 ```json

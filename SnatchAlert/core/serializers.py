@@ -48,7 +48,7 @@ class StolenItemDimSerializer(serializers.ModelSerializer):
 
 
 class SafetyTipSerializer(serializers.ModelSerializer):
-    created_by_username = serializers.CharField(source='created_by.username', read_only=True)
+    created_by_username = serializers.CharField(source='created_by.email', read_only=True)
     
     class Meta:
         model = SafetyTip
@@ -57,7 +57,7 @@ class SafetyTipSerializer(serializers.ModelSerializer):
 
 
 class UserFeedbackSerializer(serializers.ModelSerializer):
-    user_username = serializers.CharField(source='user.username', read_only=True)
+    user_username = serializers.CharField(source='user.email', read_only=True)
     
     class Meta:
         model = UserFeedback

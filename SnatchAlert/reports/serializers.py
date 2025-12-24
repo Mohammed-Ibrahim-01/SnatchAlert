@@ -55,6 +55,13 @@ class IncidentFactCreateSerializer(serializers.ModelSerializer):
         incident_type_name = validated_data.pop('incident_type_name')
         stolen_item_data = validated_data.pop('stolen_item_data', None)
         
+        # Validate victim data consistency
+        is_anonymous = validated_data.get('is_anonymous', False)
+        if is_anonymous and victim_data:
+            raise serializers.ValidationError(
+                "Cannot provide victim_data when is_anonymous is True"
+            )
+        
         # Create or get location
         location, _ = LocationDim.objects.get_or_create(
             city=location_data['city'],
@@ -76,7 +83,7 @@ class IncidentFactCreateSerializer(serializers.ModelSerializer):
         
         # Create victim if data provided
         victim = None
-        if victim_data and not validated_data.get('is_anonymous', False):
+        if victim_data and not is_anonymous:
             victim = VictimDim.objects.create(
                 user=request.user if request and request.user.is_authenticated else None,
                 **victim_data
@@ -93,7 +100,6 @@ class IncidentFactCreateSerializer(serializers.ModelSerializer):
             victim=victim,
             incident_type=incident_type,
             stolen_item=stolen_item,
-            reported_by=request.user if request and request.user.is_authenticated else None,
             **validated_data
         )
         
@@ -102,28 +108,34 @@ class IncidentFactCreateSerializer(serializers.ModelSerializer):
             stolen_item.item_type == 'phone' and 
             stolen_item.imei):
             
-            # Check if IMEI already exists
-            existing_imei = IMEIRegistry.objects.filter(imei=stolen_item.imei).first()
-            
-            if not existing_imei:
-                # Create new IMEI registry entry
-                IMEIRegistry.objects.create(
-                    imei=stolen_item.imei,
-                    phone_brand=stolen_item.phone_brand or '',
-                    phone_model=stolen_item.phone_model or '',
-                    owner_name=victim.name if victim else '',
-                    owner_contact=victim.phone_number if victim else '',
-                    incident=incident,  # Link to this incident
-                    reported_by=request.user if request and request.user.is_authenticated else None,
-                    status='stolen',
-                    notes=f'Auto-registered from incident #{incident.id} - {incident_type_name}'
-                )
-            else:
-                # Update existing IMEI record to link with this incident if not already linked
-                if not existing_imei.incident:
-                    existing_imei.incident = incident
-                    existing_imei.notes = f'Linked to incident #{incident.id} - {incident_type_name}'
-                    existing_imei.save()
+            try:
+                # Check if IMEI already exists
+                existing_imei = IMEIRegistry.objects.filter(imei=stolen_item.imei).first()
+                
+                if not existing_imei:
+                    # Create new IMEI registry entry
+                    IMEIRegistry.objects.create(
+                        imei=stolen_item.imei,
+                        phone_brand=stolen_item.phone_brand or '',
+                        phone_model=stolen_item.phone_model or '',
+                        owner_name=victim.name if victim else '',
+                        owner_contact=victim.phone_number if victim else '',
+                        incident=incident,  # Link to this incident
+                        reported_by=request.user if request and request.user.is_authenticated else None,
+                        status='stolen',
+                        notes=f'Auto-registered from incident #{incident.id} - {incident_type_name}'
+                    )
+                else:
+                    # Update existing IMEI record to link with this incident if not already linked
+                    if not existing_imei.incident:
+                        existing_imei.incident = incident
+                        existing_imei.notes = f'Linked to incident #{incident.id} - {incident_type_name}'
+                        existing_imei.save()
+            except Exception as e:
+                # Log the error but don't fail the incident creation
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to auto-register IMEI {stolen_item.imei}: {str(e)}")
         
         return incident
 
@@ -134,7 +146,7 @@ class IncidentFactListSerializer(serializers.ModelSerializer):
     victim = VictimDimSerializer(read_only=True)
     incident_type = IncidentTypeDimSerializer(read_only=True)
     stolen_item = StolenItemDimSerializer(read_only=True)
-    reported_by_username = serializers.CharField(source='reported_by.username', read_only=True)
+    reported_by_username = serializers.CharField(source='reported_by.email', read_only=True)
     
     class Meta:
         model = IncidentFact
@@ -158,7 +170,7 @@ class IMEIRegistrySerializer(serializers.ModelSerializer):
     Note: IMEI registration is now handled automatically via incident creation.
     This serializer is used for admin/authority operations only.
     """
-    reported_by_username = serializers.CharField(source='reported_by.username', read_only=True)
+    reported_by_username = serializers.CharField(source='reported_by.email', read_only=True)
     incident_id = serializers.IntegerField(source='incident.id', read_only=True)
     
     class Meta:
@@ -171,8 +183,9 @@ class IMEIRegistrySerializer(serializers.ModelSerializer):
         read_only_fields = ['reported_by', 'reported_at', 'updated_at']
     
     def validate_imei(self, value):
-        if len(value) not in [15, 17]:
-            raise serializers.ValidationError("IMEI must be 15 or 17 digits")
+        import re
+        if not re.match(r'^[0-9]{15,17}$', value):
+            raise serializers.ValidationError("IMEI must be 15-17 digits (numbers only)")
         return value
 
 
@@ -181,8 +194,9 @@ class IMEICheckSerializer(serializers.Serializer):
     imei = serializers.CharField(max_length=20)
     
     def validate_imei(self, value):
-        if len(value) not in [15, 17]:
-            raise serializers.ValidationError("IMEI must be 15 or 17 digits")
+        import re
+        if not re.match(r'^[0-9]{15,17}$', value):
+            raise serializers.ValidationError("IMEI must be 15-17 digits (numbers only)")
         return value
 
 
@@ -190,7 +204,7 @@ class AreaAlertSerializer(serializers.ModelSerializer):
     """Serializer for area alerts"""
     location = LocationDimSerializer(read_only=True)
     location_id = serializers.IntegerField(write_only=True)
-    created_by_username = serializers.CharField(source='created_by.username', read_only=True)
+    created_by_username = serializers.CharField(source='created_by.email', read_only=True)
     
     class Meta:
         model = AreaAlert
